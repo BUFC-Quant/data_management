@@ -21,7 +21,6 @@ class FMPApi(object):
         price_dict: dict = {}
 
         for j, i in enumerate(reversed(symbols)):
-            print(j, i)
             price_dict[i] = pd.DataFrame(price_list[j]['historical'])
 
         return price_dict 
@@ -122,7 +121,7 @@ class FMPApi(object):
     def get_available_indexes(self):
         return pd.DataFrame(fmpsdk.available_indexes(apikey=self.api_key))
 
-    def fetch_intraday_prices(self, symbol: str, frequency: str = '1min'):
+    def fetch_intraday_price(self, symbol: str, frequency: str = '1min'):
         """
         Fetches intraday prices for given symbol with open, high, low, close, and volume data. 
 
