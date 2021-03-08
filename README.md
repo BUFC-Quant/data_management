@@ -31,10 +31,10 @@ Import using
  ### FMP API Calls 
  The FMPApi class uses Dax Mickelson's `fmpsdk` package, which can be found [here](https://github.com/daxm/fmpsdk). FMPApi doesn't have all of the functionality included in `fmpsdk`, but it aims to make some of the calls simpler. For full functiuonality of Financial Modeling Prep's (FMP) API, you might need to use `fmpsdk` or write custom API calls to Financial Modeling Prep's endpoints. 
 
-### Historical Price Data
+## Historical Price Data
 To fetch historical price data for a security, you can use `fetch_price`, `fetch_prices`, or `fetch_intraday_price` depending on your needs. `fetch_price` and `fetch_intraday_price` will fetch for an individual security whereas `fetch_prices` is for a list of securities.
 
-#### `fetch_price`
+### `fetch_price`
 `fetch_price` takes in a security's symbol and optionally a start date and an end date. FMP's data restrictions apply to these calls. For example,
 
 ```python
@@ -54,7 +54,7 @@ This will look like:
 
 Note, date format must be `YYYY-mm-dd`. 
 
-#### 'fetch_prices'
+### 'fetch_prices'
 Same as `fetch_price` but must be given a list of symbols. Will return a dictionary of Pandas DataFrames with key-value pair (symbol, DataFrame). For example,
 
 ```python
@@ -76,7 +76,7 @@ This will look like:
 4  2021-03-01  123.750000  127.930000  122.790001  127.790001  127.790001  116307900.0       116307900.0    4.04          3.265  126.17000  March 01, 21         0.03265}
 ```
 
-#### fetch_intraday_price
+### `fetch_intraday_price`
 This will fetch intraday prices for a single security. Possible intervals are '1min', '4min', '15min', '30min', '1hour', '4hour'. The function will return a Pandas DataFrame. For example, 
 
 ```python
@@ -99,3 +99,19 @@ This will look like:
 1501  2021-03-02 14:43:00  125.79  125.73  125.81  125.78  122184
 1502  2021-03-02 14:42:00  125.86  125.78  125.88  125.80  159537
 ```
+
+## Fundamental/Financial Statement Data
+FMPApi can fetch income statement, balance sheet, and cash flow statement data in both as reported and standard formats via the `fetch_income_statement`, `fetch_balance_sheet`, and `fetch_cf_statement` functions, respectively. 
+
+Each function behaves identically. Given a symbol, the function will return the standardized statement by default for the past 4 quarters. Optionally, set `as_reported=True` to return as reported statement, set `limit=n` where `n` is the number of periods to see more periods, and set `period="annual"` for years rather than quarters. For example,
+
+```python
+portal.fetch_income_statement("AAPL", as_reported=True, limit=8)
+portal.fetch_balance_sheet("AAPL", as_reported=True, limit=8)
+portal.fetch_cf_statement("AAPL", as_reported=True, limit=8)
+
+```
+
+will fetch the income, balance sheet, and cash flow statements for Apple for the past 4 quarters. 
+
+

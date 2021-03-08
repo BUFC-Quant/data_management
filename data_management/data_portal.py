@@ -54,7 +54,7 @@ class FMPApi(object):
                 return fmpsdk.income_statement(apikey=self.api_key, symbol=symbol, period=period, limit=limit)
 
 
-    def fetch_cf_statement(self, symbol: str, limit: int = 4, as_reported: bool = True, period: str = "quarter"):
+    def fetch_cf_statement(self, symbol: str, limit: int = 4, as_reported: bool = False, period: str = "quarter"):
         """
         Fetches cash flow statement for given symbol. 
 
@@ -68,7 +68,7 @@ class FMPApi(object):
         """
         return pd.DataFrame(self._fetch_financial_statement(symbol=symbol, statement="cash_flow_statement", limit=limit, as_reported=as_reported, period=period))
 
-    def fetch_balance_sheet(self, symbol: str, limit: int = 4, as_reported: bool = True, period: str = "quarter"):
+    def fetch_balance_sheet(self, symbol: str, limit: int = 4, as_reported: bool = False, period: str = "quarter"):
         """
         Fetches balance sheet for given symbol. 
 
@@ -82,7 +82,7 @@ class FMPApi(object):
         """
         return pd.DataFrame(self._fetch_financial_statement(symbol=symbol, statement="balance_sheet", limit=limit, as_reported=as_reported, period=period))
 
-    def fetch_income_statement(self, symbol: str, limit: int = 4, as_reported: bool = True, period: str = "quarter"):
+    def fetch_income_statement(self, symbol: str, limit: int = 4, as_reported: bool = False, period: str = "quarter"):
         """
         Fetches income statement for given symbol. 
 
