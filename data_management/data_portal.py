@@ -16,7 +16,7 @@ class FMPApi(object):
         """
         data=pd.DataFrame(fmpsdk.historical_price_full(self.api_key, symbol, from_date=start_date, to_date=end_date)['historical'])
 
-        return _clean_datetime(data)
+        return self._clean_datetime(data)
 
     def fetch_prices(self, symbols: list, start_date: str = None, end_date: str = None):
         """
@@ -28,7 +28,7 @@ class FMPApi(object):
 
         for j, i in enumerate(reversed(symbols)):
             data=pd.DataFrame(price_list[j]['historical'])
-            price_dict[i] = _clean_datetime(data)
+            price_dict[i] = self._clean_datetime(data)
 
         return price_dict 
 
