@@ -6,11 +6,17 @@ class FMPApi(object):
     def __init__(self, api_key):
         self.api_key=api_key
 
+    def _clean_datetime(self, dataframe):
+        dataframe['date']=pd.to_datetime(dataframe['date'])
+        return dataframe
+
     def fetch_price(self, symbol: str, start_date: str = None, end_date: str = None):
         """
         Returns historical prices of 1 security as a pandas dataframe. 
         """
-        return pd.DataFrame(fmpsdk.historical_price_full(self.api_key, symbol, from_date=start_date, to_date=end_date)['historical'])
+        data=pd.DataFrame(fmpsdk.historical_price_full(self.api_key, symbol, from_date=start_date, to_date=end_date)['historical'])
+
+        return _clean_datetime(data)
 
     def fetch_prices(self, symbols: list, start_date: str = None, end_date: str = None):
         """
@@ -21,7 +27,8 @@ class FMPApi(object):
         price_dict: dict = {}
 
         for j, i in enumerate(reversed(symbols)):
-            price_dict[i] = pd.DataFrame(price_list[j]['historical'])
+            data=pd.DataFrame(price_list[j]['historical'])
+            price_dict[i] = _clean_datetime(data)
 
         return price_dict 
 
