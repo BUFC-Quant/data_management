@@ -9,6 +9,7 @@ class FMPApi(object):
     def _clean_datetime(self, dataframe):
         dataframe['date']=pd.to_datetime(dataframe['date'])
         dataframe.set_index('date', inplace=True)
+        dataframe=dataframe.iloc[::-1]
         return dataframe
 
     def fetch_price(self, symbol: str, start_date: str = None, end_date: str = None):
@@ -141,6 +142,7 @@ class FMPApi(object):
         """
         data=pd.DataFrame(fmpsdk.historical_chart(apikey=self.api_key, symbol=symbol, time_delta=frequency))
         data.set_index('date', inplace=True)
+        data=data.iloc[::-1]
         return data
 
     def get_company_profile(self, symbol: str):
