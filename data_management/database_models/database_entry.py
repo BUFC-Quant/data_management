@@ -286,7 +286,6 @@ def query_income_statement(ticker, session, db, portal, start_date=None, end_dat
 
 def query_cashflow_statement(ticker, session, db, portal, start_date=None, end_date=None):
     start_date, end_date = datetime_modification(start_date, end_date)
-
     result=check_for_security(ticker, session, db)
 
     if len(result)==0:
@@ -352,7 +351,72 @@ def query_cashflow_statement(ticker, session, db, portal, start_date=None, end_d
 
         return complete_data
 
-        
+def query_financial_ratios(ticker, session, db, portal, start_date=None, end_date=None):
+    start_date, end_date = datetime_modification(start_date, end_date)
+    result=check_for_security(ticker, session, db)
+
+    if len(result)==0:
+        inserted=insert_missing_security(ticker, session, portal, db)
+
+        if not inserted:
+            return 
+
+    security_id=result['id'].values[0]
+
+    # Now, find which statements we have (if any)
+    query=session.query(models.FinancialRatios).outerjoin(models.Security).filter(models.Security.ticker==ticker).statement
+    existing_data=pd.read_sql(query, db)
+    total_quarters_to_fetch = int(np.ceil(((end_date.year - start_date.year) * 12 + (end_date.month - start_date.month))/3))
+
+    if len(existing_data) > 0:
+        # First, we see if we need to fetch data to add onto our existing data 
+        latest_date = max(existing_data.date)
+        earliest_date = min(existing_data.date)
+
+        missing_months_after = abs((end_date.year - latest_date.year) * 12 + (end_date.month - latest_date.month))
+        num_quarters_rhs = np.ceil(missing_months_after/3)
+
+        if earliest_date > start_date:
+            # If we're missing on lhs, need to fetch starting at rhs all the way to lhs 
+            data=portal.fetch_financial_ratios(ticker, limit=total_quarters_to_fetch)
+
+            data['security_id']=security_id
+            data_to_add=data[~data.isin(existing_data)].dropna()
+
+            insert_financial_ratios(data_to_add, session)
+            return data
+            
+
+        elif latest_date < end_date:
+            # If we're missing on rhs, only needs to fetch number of rhs missing 
+            data=portal.fetch_financial_ratios(ticker, limit=num_quarters_rhs)
+            data['security_id']=security_id
+            data_to_add=data[~data.isin(existing_data)].dropna()
+
+            insert_financial_ratios(data_to_add, session)
+            existing_data=pd.concat([existing_data, data_to_add])
+
+        existing_data=existing_data[(existing_data['date'] >= start_date) & (existing_data['date'] <= end_date)]
+
+        # Now, we do a quick verification that we aren't missing any data between start and end
+        if len(existing_data) < total_quarters_to_fetch:
+            # Fetch all the data since we can't easily determine which quarter is missing
+            complete_data=portal.fetch_financial_ratios(ticker, limit=total_quarters_to_fetch)
+            complete_data['security_id']=security_id
+            data_to_add=complete_data[~complete_data.isin(existing_data)].dropna()
+
+            insert_financial_ratios(data_to_add, session)
+
+            return complete_data
+
+        return existing_data
+
+    else:
+        complete_data=portal.fetch_financial_ratios(ticker, limit=total_quarters_to_fetch)
+        complete_data['security_id']=security_id
+        insert_financial_ratios(complete_data, session)
+
+        return complete_data
 
 
 if __name__ == '__main__':
@@ -367,6 +431,8 @@ if __name__ == '__main__':
     Session = sessionmaker(bind=db)
     meta = MetaData(bind=db)
     session = Session()
+
+    print(query_financial_ratios('AAPL', session, db, portal, start_date='2019-03-28', end_date='2020-12-26'))
   
     # aapl_bs=portal.fetch_balance_sheet("AAPL")
     
