@@ -75,6 +75,7 @@ class FMPApi(object):
 
         """
         df=pd.DataFrame(self._fetch_financial_statement(symbol=symbol, statement="cash_flow_statement", limit=limit, as_reported=as_reported, period=period))
+        df.drop('symbol', axis=1, inplace=True)
         return self._clean_datetime(df)
 
 
@@ -91,6 +92,7 @@ class FMPApi(object):
 
         """
         df=pd.DataFrame(self._fetch_financial_statement(symbol=symbol, statement="balance_sheet", limit=limit, as_reported=as_reported, period=period))
+        df.drop('symbol', axis=1, inplace=True)
         return self._clean_datetime(df)
 
     def fetch_income_statement(self, symbol: str, limit: int = 4, as_reported: bool = False, period: str = "quarter"):
@@ -106,6 +108,7 @@ class FMPApi(object):
 
         """
         df=pd.DataFrame(self._fetch_financial_statement(symbol=symbol, statement="income_statement", limit=limit, as_reported=as_reported, period=period))
+        df.drop('symbol', axis=1, inplace=True)
         return self._clean_datetime(df)
     
     def list_market_indices(self):
@@ -152,4 +155,10 @@ class FMPApi(object):
 
         """
         return pd.DataFrame(fmpsdk.company_profile(apikey=self.api_key, symbol=symbol))
+
+    def fetch_financial_ratios(self, symbol: str, period: str = 'quarter', limit: int = 5):
+        df=pd.DataFrame(fmpsdk.financial_ratios(apikey=self.api_key, symbol=symbol, period=period, limit=limit))
+        df.drop('symbol', axis=1, inplace=True)
+        df=self._clean_datetime(df)
+        return df
 

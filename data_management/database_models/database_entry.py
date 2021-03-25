@@ -17,6 +17,9 @@ def datetime_modification(start_date, end_date):
         end_date = today - diff
         end_date = datetime.date(end_date.to_pydatetime())
 
+    else:
+        end_date = datetime.date(datetime.strptime(end_date, "%Y-%m-%d"))
+
     if start_date == None:
         start_date = pd.to_datetime('today') - timedelta(weeks = 5*52)
         start_date = datetime.date(start_date.to_pydatetime())
@@ -72,6 +75,10 @@ def insert_security(security_df, session):
 
 def insert_prices(price_df, session):
     session.bulk_insert_mappings(models.SecurityPrice, price_df.to_dict(orient='records'))
+    session.commit()
+
+def insert_financial_ratios(ratio_df, session):
+    session.bulk_insert_mappings(models.FinancialRatios, ratio_df.to_dict(orient='records'))
     session.commit()
 
 def query_prices(ticker, session, db, portal, start_date=None, end_date=None):
@@ -155,37 +162,197 @@ def query_balance_sheet(ticker, session, db, portal, start_date=None, end_date=N
     security_id=result['id'].values[0]
 
     # Now, find which statements we have (if any)
-    query=session.query(models.SecurityPrice).outerjoin(models.Security).filter(models.Security.ticker==ticker).statement
+    query=session.query(models.BalanceSheet).outerjoin(models.Security).filter(models.Security.ticker==ticker).statement
     existing_data=pd.read_sql(query, db)
+    total_quarters_to_fetch = int(np.ceil(((end_date.year - start_date.year) * 12 + (end_date.month - start_date.month))/3))
 
     if len(existing_data) > 0:
+        # First, we see if we need to fetch data to add onto our existing data 
         latest_date = max(existing_data.date)
         earliest_date = min(existing_data.date)
 
-        missing_months_before = (earliest_date.year - start_date.year) * 12 + (earliest_date.month - start_date.month)
-        num_quarters_lhs = np.ceil(missing_months_before/3)
-
-        missing_months_after = (end_date.year - latest_date.year) * 12 + (end_date.month - latest_date.year)
+        missing_months_after = abs((end_date.year - latest_date.year) * 12 + (end_date.month - latest_date.month))
         num_quarters_rhs = np.ceil(missing_months_after/3)
 
-        total_quarters_to_fetch = np.ceil(num_quarters_lhs + num_quarters_rhs + ((end_date.year - start_date.year) * 12 + (end_date.month - start_date.month))/3)+1
-
         if earliest_date > start_date:
-            # Get number of quarters
-            missing_data=portal.fetch_balance_sheet(ticker, limit=total_quarters_to_fetch)
+            # If we're missing on lhs, need to fetch starting at rhs all the way to lhs 
+            data=portal.fetch_balance_sheet(ticker, limit=total_quarters_to_fetch)
+
+            data['security_id']=security_id
+            data_to_add=data[~data.isin(existing_data)].dropna()
+
+            insert_balance_sheet(data_to_add, session)
+            return data
 
         elif latest_date < end_date:
-            # Get number of quarters
-            missing_data=portal.fetch_balance_sheet(ticker, limit=num_quarters_rhs)
+            # If we're missing on rhs, only needs to fetch number of rhs missing 
+            data=portal.fetch_balance_sheet(ticker, limit=num_quarters_rhs)
+            data['security_id']=security_id
+            data_to_add=data[~data.isin(existing_data)].dropna()
+
+            insert_balance_sheet(data_to_add, session)
+            existing_data=pd.concat([existing_data, data_to_add])
+
+        existing_data=existing_data[(existing_data['date'] >= start_date) & (existing_data['date'] <= end_date)]
+
+        # Now, we do a quick verification that we aren't missing any data between start and end
+        if len(existing_data) < total_quarters_to_fetch:
+            # Fetch all the data since we can't easily determine which quarter is missing
+            print(total_quarters_to_fetch)
+            complete_data=portal.fetch_balance_sheet(ticker, limit=total_quarters_to_fetch)
+            complete_data['security_id']=security_id
+            data_to_add=complete_data[~complete_data.isin(existing_data)].dropna()
+
+            insert_balance_sheet(data_to_add, session)
+
+            return complete_data
+
+        return existing_data
+
+    else:
+        complete_data=portal.fetch_balance_sheet(ticker, limit=total_quarters_to_fetch)
+        complete_data['security_id']=security_id
+        insert_balance_sheet(complete_data, session)
+
+        return complete_data
+
+def query_income_statement(ticker, session, db, portal, start_date=None, end_date=None):
+    start_date, end_date = datetime_modification(start_date, end_date)
+
+    result=check_for_security(ticker, session, db)
+
+    if len(result)==0:
+        inserted=insert_missing_security(ticker, session, portal, db)
+
+        if not inserted:
+            return 
+
+    security_id=result['id'].values[0]
+
+    # Now, find which statements we have (if any)
+    query=session.query(models.IncomeStatement).outerjoin(models.Security).filter(models.Security.ticker==ticker).statement
+    existing_data=pd.read_sql(query, db)
+    total_quarters_to_fetch = int(np.ceil(((end_date.year - start_date.year) * 12 + (end_date.month - start_date.month))/3))
+
+    if len(existing_data) > 0:
+        # First, we see if we need to fetch data to add onto our existing data 
+        latest_date = max(existing_data.date)
+        earliest_date = min(existing_data.date)
+
+        missing_months_after = abs((end_date.year - latest_date.year) * 12 + (end_date.month - latest_date.month))
+        num_quarters_rhs = np.ceil(missing_months_after/3)
+
+        if earliest_date > start_date:
+            # If we're missing on lhs, need to fetch starting at rhs all the way to lhs 
+            data=portal.fetch_income_statement(ticker, limit=total_quarters_to_fetch)
+
+            data['security_id']=security_id
+            data_to_add=data[~data.isin(existing_data)].dropna()
+
+            insert_balance_sheet(data_to_add, session)
+            return data
+            
+
+        elif latest_date < end_date:
+            # If we're missing on rhs, only needs to fetch number of rhs missing 
+            data=portal.fetch_income_statement(ticker, limit=num_quarters_rhs)
+            data['security_id']=security_id
+            data_to_add=data[~data.isin(existing_data)].dropna()
+
+            insert_income_statement(data_to_add, session)
+            existing_data=pd.concat([existing_data, data_to_add])
+
+        existing_data=existing_data[(existing_data['date'] >= start_date) & (existing_data['date'] <= end_date)]
+
+        # Now, we do a quick verification that we aren't missing any data between start and end
+        if len(existing_data) < total_quarters_to_fetch:
+            # Fetch all the data since we can't easily determine which quarter is missing
+            complete_data=portal.fetch_income_statement(ticker, limit=total_quarters_to_fetch)
+            complete_data['security_id']=security_id
+            data_to_add=complete_data[~complete_data.isin(existing_data)].dropna()
+
+            insert_income_statement(data_to_add, session)
+
+            return complete_data
+
+        return existing_data
+
+    else:
+        complete_data=portal.fetch_income_statement(ticker, limit=total_quarters_to_fetch)
+        complete_data['security_id']=security_id
+        insert_income_statement(complete_data, session)
+
+        return complete_data
+
+def query_cashflow_statement(ticker, session, db, portal, start_date=None, end_date=None):
+    start_date, end_date = datetime_modification(start_date, end_date)
+
+    result=check_for_security(ticker, session, db)
+
+    if len(result)==0:
+        inserted=insert_missing_security(ticker, session, portal, db)
+
+        if not inserted:
+            return 
+
+    security_id=result['id'].values[0]
+
+    # Now, find which statements we have (if any)
+    query=session.query(models.CashFlowStatement).outerjoin(models.Security).filter(models.Security.ticker==ticker).statement
+    existing_data=pd.read_sql(query, db)
+    total_quarters_to_fetch = int(np.ceil(((end_date.year - start_date.year) * 12 + (end_date.month - start_date.month))/3))
+
+    if len(existing_data) > 0:
+        # First, we see if we need to fetch data to add onto our existing data 
+        latest_date = max(existing_data.date)
+        earliest_date = min(existing_data.date)
+
+        missing_months_after = abs((end_date.year - latest_date.year) * 12 + (end_date.month - latest_date.month))
+        num_quarters_rhs = np.ceil(missing_months_after/3)
+
+        if earliest_date > start_date:
+            # If we're missing on lhs, need to fetch starting at rhs all the way to lhs 
+            data=portal.fetch_cf_statement(ticker, limit=total_quarters_to_fetch)
+
+            data['security_id']=security_id
+            data_to_add=data[~data.isin(existing_data)].dropna()
+
+            insert_cashflow_statement(data_to_add, session)
+            return data
+            
+
+        elif latest_date < end_date:
+            # If we're missing on rhs, only needs to fetch number of rhs missing 
+            data=portal.fetch_cf_statement(ticker, limit=num_quarters_rhs)
+            data['security_id']=security_id
+            data_to_add=data[~data.isin(existing_data)].dropna()
+
+            insert_cashflow_statement(data_to_add, session)
+            existing_data=pd.concat([existing_data, data_to_add])
+
+        existing_data=existing_data[(existing_data['date'] >= start_date) & (existing_data['date'] <= end_date)]
+
+        # Now, we do a quick verification that we aren't missing any data between start and end
+        if len(existing_data) < total_quarters_to_fetch:
+            # Fetch all the data since we can't easily determine which quarter is missing
+            complete_data=portal.fetch_cf_statement(ticker, limit=total_quarters_to_fetch)
+            complete_data['security_id']=security_id
+            data_to_add=complete_data[~complete_data.isin(existing_data)].dropna()
+
+            insert_cashflow_statement(data_to_add, session)
+
+            return complete_data
+
+        return existing_data
+
+    else:
+        complete_data=portal.fetch_cf_statement(ticker, limit=total_quarters_to_fetch)
+        complete_data['security_id']=security_id
+        insert_cashflow_statement(complete_data, session)
+
+        return complete_data
 
         
-
-        
-
-        
-        
-
-        pass
 
 
 if __name__ == '__main__':
@@ -200,28 +367,34 @@ if __name__ == '__main__':
     Session = sessionmaker(bind=db)
     meta = MetaData(bind=db)
     session = Session()
+  
+    # aapl_bs=portal.fetch_balance_sheet("AAPL")
     
-    aapl_bs=portal.fetch_balance_sheet("AAPL", )
-    aapl_bs['security_id']=1
 
-    start_date, end_date = datetime_modification('2020-03-28', '2020-12-26')
+    # aapl_bs_more=portal.fetch_balance_sheet("AAPL", limit=6)
 
-    latest_date = max(aapl_bs.date)
-    earliest_date = min(aapl_bs.date)
+    # print(aapl_bs_more[~aapl_bs_more.isin(aapl_bs)].dropna())
     
-    latest_date.year
+    
+    # aapl_bs['security_id']=1
+    # print(aapl_bs)
 
-    missing_months_before = (earliest_date.year - start_date.year) * 12 + (earliest_date.month - start_date.month)
-    num_quarters_lhs = np.ceil(missing_months_before/3)
+    # start_date, end_date = datetime_modification('2020-03-28', '2020-12-26')
 
-    missing_months_after = (end_date.year - latest_date.year) * 12 + (end_date.month - latest_date.year)
-    num_quarters_rhs = np.ceil(missing_months_after/3)
+    # latest_date = max(aapl_bs.date)
+    # earliest_date = min(aapl_bs.date)
 
-    total_quarters_to_fetch = np.ceil(num_quarters_lhs + num_quarters_rhs + ((end_date.year - start_date.year) * 12 + (end_date.month - start_date.month))/3)+1
+    # missing_months_before = abs((earliest_date.year - start_date.year) * 12 + (earliest_date.month - start_date.month))
+    # num_quarters_lhs = np.ceil(missing_months_before/3)
 
-    print(total_quarters_to_fetch)
-    print(max(aapl_bs.date))
-    print(min(aapl_bs.date))
+    # missing_months_after = abs((end_date.year - latest_date.year) * 12 + (end_date.month - latest_date.month))
+    # num_quarters_rhs = np.ceil(missing_months_after/3)
+ 
+    # total_quarters_to_fetch = np.ceil(num_quarters_lhs + num_quarters_rhs + ((end_date.year - start_date.year) * 12 + (end_date.month - start_date.month))/3)+1
+
+    # print(total_quarters_to_fetch)
+    # print(max(aapl_bs.date))
+    # print(min(aapl_bs.date))
     # print(aapl_bs)
     # insert_balance_sheet(aapl_bs, session)
 

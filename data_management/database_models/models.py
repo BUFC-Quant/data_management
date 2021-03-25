@@ -151,7 +151,7 @@ class BalanceSheet(Base):
     totalDebt = Column("totalDebt", Float)
 
     netDebt = Column("netDebt", Float)
-    UniqueConstraint('security_id')
+    UniqueConstraint('date', 'security_id')
 
 class IncomeStatement(Base):
     __tablename__ = 'income_statement'
@@ -161,9 +161,9 @@ class IncomeStatement(Base):
 
     reportedCurrency = Column("reportedCurrency", String(5))
 
-    fillingDate = Column("fillingDate", Float)
+    fillingDate = Column("fillingDate", Date)
 
-    acceptedDate = Column("acceptedDate", Float)
+    acceptedDate = Column("acceptedDate", Date)
 
     period = Column("period", String(5))
 
@@ -218,7 +218,7 @@ class IncomeStatement(Base):
     weightedAverageShsOut = Column("weightedAverageShsOut", Float)
 
     weightedAverageShsOutDil = Column("weightedAverageShsOutDil", Float)
-    UniqueConstraint('security_id')
+    UniqueConstraint('date', 'security_id')
 
 class CashFlowStatement(Base):
     __tablename__ = 'cash_flow_statement'
@@ -228,9 +228,9 @@ class CashFlowStatement(Base):
 
     reportedCurrency = Column("reportedCurrency", String(5))
 
-    fillingDate = Column("fillingDate", Float)
+    fillingDate = Column("fillingDate", Date)
 
-    acceptedDate = Column("acceptedDate", Float)
+    acceptedDate = Column("acceptedDate", Date)
 
     period = Column("period", String(5))
 
@@ -293,4 +293,67 @@ class CashFlowStatement(Base):
     capitalExpenditure = Column("capitalExpenditure", Float)
 
     freeCashFlow = Column("freeCashFlow", Float)
-    UniqueConstraint('security_id')
+    UniqueConstraint('date', 'security_id')
+
+class FinancialRatios(Base):
+    __tablename__ = 'financial_ratios'
+    date = Column('date', Date, nullable=False, primary_key=True)
+    security_id = Column(Integer, ForeignKey('security.id', onupdate = "CASCADE", ondelete = "CASCADE"), nullable = False, primary_key=True)
+    security = relationship('Security')
+    
+    period = Column('period', String(5))
+    currentRatio = Column('currentRatio', Float)
+    quickRatio = Column('quickRatio', Float)
+    cashRatio = Column('cashRatio', Float)
+    daysOfSalesOutstanding = Column('daysOfSalesOutstanding', Float)
+    daysOfInventoryOutstanding = Column('daysOfInventoryOutstanding', Float)
+    operatingCycle = Column('operatingCycle', Float)
+    daysOfPayablesOutstanding = Column('daysOfPayablesOutstanding', Float)
+    cashConversionCycle = Column('cashConversionCycle', Float)
+    grossProfitMargin = Column('grossProfitMargin', Float)
+    operatingProfitMargin = Column('operatingProfitMargin', Float)
+    pretaxProfitMargin = Column('pretaxProfitMargin', Float)
+    netProfitMargin = Column('netProfitMargin', Float)
+    effectiveTaxRate = Column('effectiveTaxRate', Float)
+    returnOnAssets = Column('returnOnAssets', Float)
+    returnOnEquity = Column('returnOnEquity', Float)
+    returnOnCapitalEmployed = Column('returnOnCapitalEmployed', Float)
+    netIncomePerEBT = Column('netIncomePerEBT', Float)
+    ebtPerEbit = Column('ebtPerEbit', Float)
+    ebitPerRevenue = Column('ebitPerRevenue', Float)
+    debtRatio = Column('debtRatio', Float)
+    debtEquityRatio = Column('debtEquityRatio', Float)
+    longTermDebtToCapitalization = Column('longTermDebtToCapitalization', Float)
+    totalDebtToCapitalization = Column('totalDebtToCapitalization', Float)
+    interestCoverage = Column('interestCoverage', Float)
+    cashFlowToDebtRatio = Column('cashFlowToDebtRatio', Float)
+    companyEquityMultiplier = Column('companyEquityMultiplier', Float)
+    receivablesTurnover = Column('receivablesTurnover', Float)
+    payablesTurnover = Column('payablesTurnover', Float)
+    inventoryTurnover = Column('inventoryTurnover', Float)
+    fixedAssetTurnover = Column('fixedAssetTurnover', Float)
+    assetTurnover = Column('assetTurnover', Float)
+    operatingCashFlowPerShare = Column('operatingCashFlowPerShare', Float)
+    freeCashFlowPerShare = Column('freeCashFlowPerShare', Float)
+    cashPerShare = Column('cashPerShare', Float)
+    payoutRatio = Column('payoutRatio', Float)
+    operatingCashFlowSalesRatio = Column('operatingCashFlowSalesRatio', Float)
+    freeCashFlowOperatingCashFlowRatio = Column('freeCashFlowOperatingCashFlowRatio', Float)
+    cashFlowCoverageRatios = Column('cashFlowCoverageRatios', Float)
+    shortTermCoverageRatios = Column('shortTermCoverageRatios', Float)
+    capitalExpenditureCoverageRatio = Column('capitalExpenditureCoverageRatio', Float)
+    dividendPaidAndCapexCoverageRatio = Column('dividendPaidAndCapexCoverageRatio', Float)
+    dividendPayoutRatio = Column('dividendPayoutRatio', Float)
+    priceBookValueRatio = Column('priceBookValueRatio', Float)
+    priceToBookRatio = Column('priceToBookRatio', Float)
+    priceToSalesRatio = Column('priceToSalesRatio', Float)
+    priceEarningsRatio = Column('priceEarningsRatio', Float)
+    priceToFreeCashFlowsRatio = Column('priceToFreeCashFlowsRatio', Float)
+    priceToOperatingCashFlowsRatio = Column('priceToOperatingCashFlowsRatio', Float)
+    priceCashFlowRatio = Column('priceCashFlowRatio', Float)
+    priceEarningsToGrowthRatio = Column('priceEarningsToGrowthRatio', Float)
+    priceSalesRatio = Column('priceSalesRatio', Float)
+    dividendYield = Column('dividendYield', Float)
+    enterpriseValueMultiple = Column('enterpriseValueMultiple', Float)
+    priceFairValue = Column('priceFairValue', Float)
+    UniqueConstraint('date', 'security_id')
