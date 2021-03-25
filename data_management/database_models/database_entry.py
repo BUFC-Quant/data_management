@@ -421,7 +421,7 @@ def query_financial_ratios(ticker, session, db, portal, start_date=None, end_dat
 
 if __name__ == '__main__':
     from data_management.data_portal import FMPApi
-    portal = FMPApi('4c820bedf369dc4593cb9aa6692a1d65')
+    
     from sqlalchemy import MetaData
     from sqlalchemy.orm import sessionmaker
     from setup_psql_environment import get_database, get_connection_from_profile
