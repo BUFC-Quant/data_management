@@ -8,7 +8,6 @@ class FMPApi(object):
 
     def _clean_datetime(self, dataframe):
         dataframe['date']=pd.to_datetime(dataframe['date'])
-        dataframe.set_index('date', inplace=True)
         dataframe=dataframe.iloc[::-1]
         return dataframe
 
@@ -75,7 +74,9 @@ class FMPApi(object):
         :rtype: pd.DataFrame
 
         """
-        return pd.DataFrame(self._fetch_financial_statement(symbol=symbol, statement="cash_flow_statement", limit=limit, as_reported=as_reported, period=period))
+        df=pd.DataFrame(self._fetch_financial_statement(symbol=symbol, statement="cash_flow_statement", limit=limit, as_reported=as_reported, period=period))
+        return self._clean_datetime(df)
+
 
     def fetch_balance_sheet(self, symbol: str, limit: int = 4, as_reported: bool = False, period: str = "quarter"):
         """
@@ -89,7 +90,8 @@ class FMPApi(object):
         :rtype: pd.DataFrame
 
         """
-        return pd.DataFrame(self._fetch_financial_statement(symbol=symbol, statement="balance_sheet", limit=limit, as_reported=as_reported, period=period))
+        df=pd.DataFrame(self._fetch_financial_statement(symbol=symbol, statement="balance_sheet", limit=limit, as_reported=as_reported, period=period))
+        return self._clean_datetime(df)
 
     def fetch_income_statement(self, symbol: str, limit: int = 4, as_reported: bool = False, period: str = "quarter"):
         """
@@ -103,8 +105,8 @@ class FMPApi(object):
         :rtype: pd.DataFrame
 
         """
-        return pd.DataFrame(self._fetch_financial_statement(symbol=symbol, statement="income_statement", limit=limit, as_reported=as_reported, period=period))
-
+        df=pd.DataFrame(self._fetch_financial_statement(symbol=symbol, statement="income_statement", limit=limit, as_reported=as_reported, period=period))
+        return self._clean_datetime(df)
     
     def list_market_indices(self):
         return pd.DataFrame(fmpsdk.indexes(apikey=self.api_key))
@@ -150,3 +152,4 @@ class FMPApi(object):
 
         """
         return pd.DataFrame(fmpsdk.company_profile(apikey=self.api_key, symbol=symbol))
+

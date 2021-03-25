@@ -1,0 +1,5 @@
+PGHOST: buaws-aws-cf-rds-postgresql-devl.cenrervr4svx.us-east-2.rds.amazonaws.com
+PGDATABASE: bufc
+PGUSER: jtbishop
+PGPASSWORD: quantpass
+PGPORT: 5432
